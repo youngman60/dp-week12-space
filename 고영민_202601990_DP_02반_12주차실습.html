@@ -1,0 +1,552 @@
+﻿<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A-Frame Space Planets, Galaxy Express & 3D Product</title>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script>
+      // 1. 우주 별 배경 컴포넌트
+      AFRAME.registerComponent("starfield", {
+        init: function () {
+          var group = document.createElement("a-entity");
+          for (var i = 0; i < 550; i += 1) {
+            var star = document.createElement("a-sphere");
+            var radius = 70;
+            var phi = Math.random() * Math.PI * 2;
+            var costheta = Math.random() * 2 - 1;
+            var theta = Math.acos(costheta);
+            var x = radius * Math.sin(theta) * Math.cos(phi);
+            var y = radius * Math.sin(theta) * Math.sin(phi);
+            var z = radius * Math.cos(theta);
+            star.setAttribute("position", x + " " + y + " " + z);
+            star.setAttribute("radius", 0.06 + Math.random() * 0.06);
+            star.setAttribute("color", "#ffffff");
+            star.setAttribute("material", "shader: flat; emissive: #ffffff; emissiveIntensity: 1;");
+            group.appendChild(star);
+          }
+          this.el.appendChild(group);
+        },
+      });
+      // 2. [3D 쥬얼리 스탠드 제품 컴포넌트]
+      AFRAME.registerComponent("jewelry-stand", {
+        init: function () {
+          var root = new THREE.Group();
+          var woodMat = new THREE.MeshStandardMaterial({
+            color: 0x241810,
+            roughness: 0.38,
+            metalness: 0.12,
+          });
+          var silverMat = new THREE.MeshStandardMaterial({
+            color: 0xe8ecf1,
+            metalness: 0.92,
+            roughness: 0.18,
+          });
+          var pearlMat = new THREE.MeshStandardMaterial({
+            color: 0xf8f9fa,
+            metalness: 0.15,
+            roughness: 0.25,
+          });
+          // 받침대 & 기둥
+          var baseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.8, 0.12, 36), woodMat);
+          baseMesh.position.y = 0.06;
+          root.add(baseMesh);
+          var stemMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.95, 24), woodMat);
+          stemMesh.position.y = 0.58;
+          root.add(stemMesh);
+          // 나선 척추
+          var spineCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, 0.95, 0),
+            new THREE.Vector3(0.12, 1.25, 0.05),
+            new THREE.Vector3(0.42, 1.6, 0.0),
+            new THREE.Vector3(0.38, 2.05, -0.15),
+            new THREE.Vector3(0.08, 2.35, -0.1),
+          ]);
+          root.add(new THREE.Mesh(new THREE.TubeGeometry(spineCurve, 32, 0.11, 16, false), woodMat));
+          this.pendulumItems = [];
+          // 8개의 나선형 가지
+          for (var i = 0; i < 8; i++) {
+            var t = i / 7;
+            var branchY = 1.05 + t * 1.35;
+            var spiralAngle = (-65 + t * 155) * (Math.PI / 180);
+            var branchGroup = new THREE.Group();
+            branchGroup.position.set(0, branchY, 0);
+            branchGroup.rotation.y = spiralAngle;
+            var branchLength = 1.75 - t * 0.35;
+            var branchMesh = new THREE.Mesh(new THREE.BoxGeometry(branchLength, 0.065, 0.09), woodMat);
+            branchMesh.position.x = -branchLength / 2;
+            branchMesh.rotation.z = (-2 + t * 7) * (Math.PI / 180);
+            branchGroup.add(branchMesh);
+            // 목걸이
+            if (i === 1) {
+              var necklace = new THREE.Group();
+              necklace.position.set(-1.18, -0.04, 0);
+              var chainCurve = new THREE.CubicBezierCurve3(
+                new THREE.Vector3(-0.16, 0, 0),
+                new THREE.Vector3(-0.12, -1.25, 0),
+                new THREE.Vector3(0.12, -1.25, 0),
+                new THREE.Vector3(0.16, 0, 0)
+              );
+              necklace.add(new THREE.Mesh(new THREE.TubeGeometry(chainCurve, 32, 0.013, 8, false), silverMat));
+              var pendant = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.022, 16, 24), silverMat);
+              pendant.position.set(0, -1.28, 0);
+              necklace.add(pendant);
+              var cross = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.16, 8), silverMat);
+              cross.position.set(0, -1.28, 0);
+              necklace.add(cross);
+              branchGroup.add(necklace);
+              this.pendulumItems.push({ obj: necklace, speed: 3.5, amp: 0.15 });
+            }
+            // 귀걸이
+            if (i === 3 || i === 5) {
+              var posX = i === 3 ? -0.68 : -0.52;
+              var dropLen = i === 3 ? 0.38 : 0.18;
+              for (var side = -1; side <= 1; side += 2) {
+                var earring = new THREE.Group();
+                earring.position.set(posX + side * 0.075, -0.03, 0.04);
+                earring.add(new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.008, 8, 16), silverMat));
+                var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, dropLen, 8), silverMat);
+                bar.position.y = -dropLen / 2;
+                earring.add(bar);
+                var bead = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), pearlMat);
+                bead.position.y = -dropLen - 0.03;
+                earring.add(bead);
+                branchGroup.add(earring);
+                this.pendulumItems.push({ obj: earring, speed: 4.5, amp: 0.22 });
+              }
+            }
+            root.add(branchGroup);
+          }
+          var ringGroup = new THREE.Group();
+          ringGroup.position.set(0.42, 0.19, 0.22);
+          ringGroup.rotation.x = Math.PI / 3.5;
+          ringGroup.add(new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.02, 16, 24), silverMat));
+          root.add(ringGroup);
+          root.position.y = -1.2;
+          this.el.setObject3D("mesh", root);
+        },
+        tick: function (time) {
+          if (!this.pendulumItems) return;
+          var t = time / 1000;
+          for (var i = 0; i < this.pendulumItems.length; i++) {
+            this.pendulumItems[i].obj.rotation.z = Math.sin(t * this.pendulumItems[i].speed + i) * this.pendulumItems[i].amp;
+          }
+        }
+      });
+      // 3. [귀여운 동물] 우주 헬멧을 쓴 아기 우주 고양이 (Astro-Cat)
+      AFRAME.registerComponent("space-cat", {
+        init: function () {
+          var cat = new THREE.Group();
+          var whiteFur = new THREE.MeshStandardMaterial({ color: 0xfffcf5, roughness: 0.6 });
+          var pinkMat = new THREE.MeshStandardMaterial({ color: 0xff9bb2, roughness: 0.5 });
+          var suitMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.35, metalness: 0.1 });
+          var goldMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.8, roughness: 0.2 });
+          var helmetMat = new THREE.MeshStandardMaterial({
+            color: 0xa5f3fc,
+            transparent: true,
+            opacity: 0.38,
+            roughness: 0.1,
+            metalness: 0.15,
+            depthWrite: false
+          });
+          var eyeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+          var shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+          var head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 24), whiteFur);
+          head.position.set(0, 0.25, 0);
+          cat.add(head);
+          for (var side = -1; side <= 1; side += 2) {
+            var ear = new THREE.Group();
+            ear.position.set(side * 0.18, 0.48, 0.04);
+            ear.rotation.z = side * -0.28;
+            ear.add(new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.22, 16), whiteFur));
+            var earIn = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.18, 16), pinkMat);
+            earIn.position.set(0, 0, 0.02);
+            ear.add(earIn);
+            cat.add(ear);
+          }
+          for (var s = -1; s <= 1; s += 2) {
+            var eye = new THREE.Mesh(new THREE.SphereGeometry(0.052, 16, 16), eyeMat);
+            eye.position.set(s * 0.12, 0.26, 0.28);
+            var shine = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), shineMat);
+            shine.position.set(s * 0.015, 0.015, 0.04);
+            eye.add(shine);
+            cat.add(eye);
+          }
+          var nose = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.03, 3), pinkMat);
+          nose.rotation.z = Math.PI;
+          nose.position.set(0, 0.21, 0.315);
+          cat.add(nose);
+          for (var ch = -1; ch <= 1; ch += 2) {
+            var cheek = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), pinkMat);
+            cheek.scale.set(1.2, 0.6, 0.5);
+            cheek.position.set(ch * 0.19, 0.18, 0.24);
+            cat.add(cheek);
+          }
+          var helmet = new THREE.Mesh(new THREE.SphereGeometry(0.48, 28, 28), helmetMat);
+          helmet.position.set(0, 0.27, 0.02);
+          cat.add(helmet);
+          var collar = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 12, 28), goldMat);
+          collar.rotation.x = Math.PI / 2;
+          collar.position.set(0, -0.06, 0.02);
+          cat.add(collar);
+          var body = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 24), suitMat);
+          body.scale.set(0.95, 1.15, 0.9);
+          body.position.set(0, -0.22, 0);
+          cat.add(body);
+          this.paws = [];
+          for (var px = -1; px <= 1; px += 2) {
+            var fPaw = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), suitMat);
+            fPaw.scale.set(0.9, 1.35, 0.9);
+            fPaw.position.set(px * 0.17, -0.12, 0.22);
+            fPaw.rotation.x = -Math.PI / 5;
+            cat.add(fPaw);
+            this.paws.push({ mesh: fPaw, baseRot: -Math.PI / 5, speed: 4.5, offset: px });
+            var bPaw = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), suitMat);
+            bPaw.position.set(px * 0.2, -0.46, 0.05);
+            cat.add(bPaw);
+            this.paws.push({ mesh: bPaw, baseRot: 0, speed: 4.5, offset: -px });
+          }
+          var tail = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.35, 12), whiteFur);
+          tail.position.set(0, -0.38, -0.25);
+          tail.rotation.x = -Math.PI / 3;
+          cat.add(tail);
+          this.tail = tail;
+          var pack = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.32, 0.14), goldMat);
+          pack.position.set(0, -0.18, -0.32);
+          cat.add(pack);
+          this.el.setObject3D("mesh", cat);
+        },
+        tick: function (time) {
+          var t = time / 1000;
+          if (this.tail) {
+            this.tail.rotation.z = Math.sin(t * 4.0) * 0.35;
+            this.tail.rotation.x = -Math.PI / 3 + Math.cos(t * 3.0) * 0.15;
+          }
+          if (this.paws) {
+            for (var i = 0; i < this.paws.length; i++) {
+              var p = this.paws[i];
+              p.mesh.rotation.x = p.baseRot + Math.sin(t * p.speed + p.offset) * 0.22;
+            }
+          }
+        }
+      });
+      // 4. [은하철도 999 스타일의 은하 우주 열차 컴포넌트 (Galaxy Train)]
+      AFRAME.registerComponent("galaxy-train", {
+        init: function () {
+          var trainGroup = new THREE.Group();
+          // 열차 재질 (딥 네이비 & 앤틱 골드 & 빛나는 창문/헤드라이트)
+          var bodyMat = new THREE.MeshStandardMaterial({
+            color: 0x0f172a,
+            roughness: 0.35,
+            metalness: 0.45
+          });
+          var goldMat = new THREE.MeshStandardMaterial({
+            color: 0xf59e0b,
+            metalness: 0.85,
+            roughness: 0.2
+          });
+          var wheelMat = new THREE.MeshStandardMaterial({
+            color: 0x334155,
+            metalness: 0.7,
+            roughness: 0.3
+          });
+          var windowGlow = new THREE.MeshBasicMaterial({ color: 0xfef08a }); // 객차 창문 불빛
+          var headlightGlow = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
+          var beamMat = new THREE.MeshBasicMaterial({
+            color: 0xfef9c3,
+            transparent: true,
+            opacity: 0.22,
+            side: THREE.DoubleSide,
+            depthWrite: false
+          });
+          // A. 증기기관차 선두 헤드
+          var loco = new THREE.Group();
+          // 보일러 본체
+          var boiler = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.95, 20), bodyMat);
+          boiler.rotation.x = Math.PI / 2;
+          boiler.position.set(0, 0.28, 0.1);
+          loco.add(boiler);
+          var boilerFront = new THREE.Mesh(new THREE.SphereGeometry(0.24, 20, 16), bodyMat);
+          boilerFront.position.set(0, 0.28, 0.58);
+          boilerFront.scale.set(1, 1, 0.5);
+          loco.add(boilerFront);
+          // 전면 헤드라이트 & 전방을 비추는 은하 광선 빔
+          var headlight = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.14, 16), goldMat);
+          headlight.rotation.x = Math.PI / 2;
+          headlight.position.set(0, 0.38, 0.7);
+          loco.add(headlight);
+          var lightLens = new THREE.Mesh(new THREE.CircleGeometry(0.09, 16), headlightGlow);
+          lightLens.position.set(0, 0.38, 0.77);
+          loco.add(lightLens);
+          var lightBeam = new THREE.Mesh(new THREE.ConeGeometry(0.85, 3.2, 16, 1, true), beamMat);
+          lightBeam.rotation.x = -Math.PI / 2;
+          lightBeam.position.set(0, 0.38, 2.3);
+          loco.add(lightBeam);
+          // 굴뚝
+          var chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.06, 0.25, 12), goldMat);
+          chimney.position.set(0, 0.62, 0.42);
+          loco.add(chimney);
+          // 기관실 캡 & 창문
+          var cab = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.55, 0.5), bodyMat);
+          cab.position.set(0, 0.42, -0.42);
+          loco.add(cab);
+          var cabRoof = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.54, 16, 1, false, 0, Math.PI), goldMat);
+          cabRoof.rotation.z = Math.PI / 2;
+          cabRoof.position.set(0, 0.7, -0.42);
+          loco.add(cabRoof);
+          for (var cs = -1; cs <= 1; cs += 2) {
+            var cabWin = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.15), windowGlow);
+            cabWin.rotation.y = cs * Math.PI / 2;
+            cabWin.position.set(cs * 0.285, 0.46, -0.42);
+            loco.add(cabWin);
+          }
+          // 바퀴들
+          for (var w = 0; w < 3; w++) {
+            var wz = 0.35 - w * 0.35;
+            for (var ws = -1; ws <= 1; ws += 2) {
+              var wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.05, 16), wheelMat);
+              wheel.rotation.z = Math.PI / 2;
+              wheel.position.set(ws * 0.28, 0.14, wz);
+              loco.add(wheel);
+            }
+          }
+          trainGroup.add(loco);
+          // B. 객차 2칸
+          for (var c = 0; c < 2; c++) {
+            var coach = new THREE.Group();
+            var coachZ = -1.25 - c * 1.35;
+            coach.position.set(0, 0, coachZ);
+            var coachBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.44, 1.15), bodyMat);
+            coachBody.position.set(0, 0.34, 0);
+            coach.add(coachBody);
+            var roof = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.17, 16, 1, false, 0, Math.PI), goldMat);
+            roof.rotation.z = Math.PI / 2;
+            roof.position.set(0, 0.56, 0);
+            coach.add(roof);
+            for (var side = -1; side <= 1; side += 2) {
+              for (var win = 0; win < 4; win++) {
+                var winZ = -0.38 + win * 0.25;
+                var winMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.15), windowGlow);
+                winMesh.rotation.y = side * Math.PI / 2;
+                winMesh.position.set(side * 0.255, 0.36, winZ);
+                coach.add(winMesh);
+              }
+            }
+            for (var cw = -1; cw <= 1; cw += 2) {
+              for (var cws = -1; cws <= 1; cws += 2) {
+                var cWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 14), wheelMat);
+                cWheel.rotation.z = Math.PI / 2;
+                cWheel.position.set(cws * 0.26, 0.1, cw * 0.38);
+                coach.add(cWheel);
+              }
+            }
+            trainGroup.add(coach);
+          }
+          // C. 굴뚝 별빛 연기 파티클
+          this.smokeParticles = [];
+          var smokeMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.65
+          });
+          for (var s = 0; s < 6; s++) {
+            var smoke = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), smokeMat);
+            smoke.position.set(0, 0.75 + s * 0.15, 0.3 - s * 0.35);
+            loco.add(smoke);
+            this.smokeParticles.push({
+              mesh: smoke,
+              baseY: 0.75,
+              baseZ: 0.4,
+              offset: s * 0.5
+            });
+          }
+          trainGroup.rotation.y = Math.PI / 2;
+          this.el.setObject3D("mesh", trainGroup);
+        },
+        tick: function (time) {
+          if (!this.smokeParticles) return;
+          var t = time / 1000;
+          for (var i = 0; i < this.smokeParticles.length; i++) {
+            var sp = this.smokeParticles[i];
+            var age = (t * 2.2 + sp.offset) % 3.0;
+            sp.mesh.position.y = sp.baseY + age * 0.35 + Math.sin(t * 3 + i) * 0.05;
+            sp.mesh.position.z = sp.baseZ - age * 0.9;
+            var scale = 0.6 + age * 0.8;
+            sp.mesh.scale.set(scale, scale, scale);
+            sp.mesh.material.opacity = Math.max(0, 0.65 - age * 0.2);
+          }
+        }
+      });
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #020617;
+      }
+    </style>
+  </head>
+  <body>
+    <a-scene background="color: #020617">
+      <a-entity starfield></a-entity>
+      <!-- 조명 -->
+      <a-entity light="type: ambient; color: #94a3b8; intensity: 0.9"></a-entity>
+      <a-entity light="type: directional; color: #ffffff; intensity: 1.8" position="5 8 6"></a-entity>
+      <a-entity light="type: point; color: #f472b6; intensity: 1.4; distance: 25" position="-3 2 -2"></a-entity>
+      <a-entity light="type: point; color: #60a5fa; intensity: 1.2; distance: 30" position="4 6 -4"></a-entity>
+      <!-- 카메라: 우주 전체를 넓고 웅장하게 조망 (WASD/마우스 자유 이동 가능) -->
+      <a-entity id="camera-rig" position="0 2.4 6.8">
+        <a-camera position="0 0 0" look-controls wasd-controls></a-camera>
+      </a-entity>
+      <!-- ========================================================= -->
+      <!-- [은하철도 999] 우주를 가로지르는 빛의 은하 열차 (Galaxy Express) -->
+      <!-- ========================================================= -->
+      <a-entity
+        id="galaxy-train-orbit"
+        position="0 1.6 0"
+        rotation="22 0 -10"
+        animation="property: rotation; to: 22 360 -10; loop: true; dur: 18000; easing: linear;"
+      >
+        <!-- 은하 레일 (열차가 달리는 은은한 빛의 궤도 링) -->
+        <a-ring
+          radius-inner="7.42"
+          radius-outer="7.54"
+          rotation="-90 0 0"
+          color="#38bdf8"
+          material="side: double; transparent: true; opacity: 0.35; shader: flat;"
+        ></a-ring>
+        <a-ring
+          radius-inner="7.47"
+          radius-outer="7.49"
+          rotation="-90 0 0"
+          color="#fef08a"
+          material="side: double; transparent: true; opacity: 0.6; shader: flat;"
+        ></a-ring>
+        <!-- 은하 열차 본체: 궤도를 돌며 부드럽게 물결치듯 유영 -->
+        <a-entity
+          position="7.48 0 0"
+          animation__wave="property: position; to: 7.48 0.6 0; dir: alternate; loop: true; dur: 2200; easing: easeInOutSine;"
+        >
+          <a-entity galaxy-train scale="1.1 1.1 1.1"></a-entity>
+        </a-entity>
+      </a-entity>
+      <!-- ========================================================= -->
+      <!-- 1. [귀여운 동물] 우주 헬멧을 쓴 아기 우주 고양이 (Astro-Cat) -->
+      <!-- ========================================================= -->
+      <a-entity
+        id="cat-orbit"
+        position="0 1.2 0"
+        rotation="12 0 0"
+        animation="property: rotation; to: 12 360 0; loop: true; dur: 6500; easing: linear;"
+      >
+        <a-entity
+          position="2.3 0.2 0"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 3200; easing: linear;"
+          animation__bounce="property: position; to: 2.3 1.2 0; dir: alternate; loop: true; dur: 850; easing: easeInOutSine;"
+        >
+          <a-entity space-cat scale="0.9 0.9 0.9"></a-entity>
+          <a-sphere
+            position="0.45 0.5 0"
+            radius="0.08"
+            color="#fde047"
+            material="emissive: #fde047; emissiveIntensity: 1; shader: flat;"
+          ></a-sphere>
+        </a-entity>
+      </a-entity>
+      <!-- ========================================================= -->
+      <!-- 2. [3D 제품 스탠드] 공전 궤도를 따라 우주를 크게 돌며 뜀 -->
+      <!-- ========================================================= -->
+      <a-entity
+        id="product-orbit"
+        position="0 1.2 0"
+        rotation="-6 0 0"
+        animation="property: rotation; to: -6 360 0; loop: true; dur: 9000; easing: linear;"
+      >
+        <a-entity
+          position="3.5 0.1 0"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 4500; easing: linear;"
+          animation__bounce="property: position; to: 3.5 1.3 0; dir: alternate; loop: true; dur: 1100; easing: easeInOutSine;"
+        >
+          <a-entity jewelry-stand scale="0.95 0.95 0.95"></a-entity>
+          <a-ring
+            position="0 -1.15 0"
+            rotation="-90 0 0"
+            radius-inner="0.8"
+            radius-outer="1.05"
+            color="#c084fc"
+            material="shader: flat; opacity: 0.5; transparent: true;"
+          ></a-ring>
+        </a-entity>
+      </a-entity>
+      <!-- ========================================================= -->
+      <!-- 3. [진짜 행성] 거대한 고리를 두른 황금빛 토성 (Saturn Planet) -->
+      <!-- ========================================================= -->
+      <a-entity
+        id="saturn-orbit"
+        position="0 1.2 0"
+        rotation="18 0 0"
+        animation="property: rotation; to: 18 360 0; loop: true; dur: 12000; easing: linear;"
+      >
+        <a-entity
+          position="4.8 -0.1 0"
+          animation__bounce="property: position; to: 4.8 1.4 0; dir: alternate; loop: true; dur: 1300; easing: easeInOutSine;"
+        >
+          <a-sphere
+            radius="0.75"
+            color="#e2a85c"
+            material="roughness: 0.65; metalness: 0.15;"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear;"
+          >
+            <a-ring
+              radius-inner="1.15"
+              radius-outer="1.9"
+              rotation="65 20 0"
+              color="#fcd34d"
+              material="side: double; transparent: true; opacity: 0.85; roughness: 0.5;"
+            ></a-ring>
+            <a-ring
+              radius-inner="2.0"
+              radius-outer="2.2"
+              rotation="65 20 0"
+              color="#fbbf24"
+              material="side: double; transparent: true; opacity: 0.5; roughness: 0.5;"
+            ></a-ring>
+          </a-sphere>
+        </a-entity>
+      </a-entity>
+      <!-- ========================================================= -->
+      <!-- 4. [진짜 행성] 아기 위성(Moon)을 거느린 오로라 에메랄드 행성 -->
+      <!-- ========================================================= -->
+      <a-entity
+        id="aurora-planet-orbit"
+        position="0 1.2 0"
+        rotation="-15 0 0"
+        animation="property: rotation; to: -15 360 0; loop: true; dur: 15000; easing: linear;"
+      >
+        <a-entity
+          position="6.2 0.3 0"
+          animation__bounce="property: position; to: 6.2 1.7 0; dir: alternate; loop: true; dur: 1600; easing: easeInOutSine;"
+        >
+          <a-sphere
+            radius="0.85"
+            color="#06b6d4"
+            material="roughness: 0.45; metalness: 0.2; emissive: #083344; emissiveIntensity: 0.3;"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 6000; easing: linear;"
+          >
+            <a-entity animation="property: rotation; to: 0 360 0; loop: true; dur: 2400; easing: linear;">
+              <a-sphere
+                position="1.45 0 0"
+                radius="0.18"
+                color="#e2e8f0"
+                material="roughness: 0.8;"
+              ></a-sphere>
+            </a-entity>
+          </a-sphere>
+        </a-entity>
+      </a-entity>
+    </a-scene>
+  </body>
+</html>
